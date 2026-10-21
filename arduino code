@@ -1,0 +1,160 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+// Wi-Fi Credentials
+const char* ssid = "vivo Y72 5G";
+const char* password = "Mallik@07";
+
+// Updated with your laptop's IPv4 address and FastAPI port
+const char* serverUrl = "http://10.121.27.116:8000/api/sensors/update";
+
+// Sensor Pin Definitions
+#define ONE_WIRE_BUS 4
+#define TDS_PIN 32
+#define PH_PIN 34
+#define TURBIDITY_PIN 35
+
+#define COLOR_S0 18
+#define COLOR_S1 19
+#define COLOR_S2 21
+#define COLOR_S3 22
+#define COLOR_OUT 23
+
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature tempSensors(&oneWire);
+
+const float ADC_REF = 3.3;
+
+// Helper function to read color frequencies from TCS3200
+int readColorChannel(bool s2Val, bool s3Val) {
+  digitalWrite(COLOR_S2, s2Val);
+  digitalWrite(COLOR_S3, s3Val);
+  delay(10);
+  unsigned long pulse = pulseIn(COLOR_OUT, LOW, 25000);
+  if (pulse == 0) return 255;
+  return constrain(map(pulse, 30, 250, 255, 0), 0, 255);
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println("\n[SYSTEM] ESP32 Booted Successfully!");
+
+  // Initialize Analog Sensor Pins
+  pinMode(TDS_PIN, INPUT);
+  pinMode(PH_PIN, INPUT);
+  pinMode(TURBIDITY_PIN, INPUT);
+
+  // Initialize TCS3200 Color Sensor Pins
+  pinMode(COLOR_S0, OUTPUT);
+  pinMode(COLOR_S1, OUTPUT);
+  pinMode(COLOR_S2, OUTPUT);
+  pinMode(COLOR_S3, OUTPUT);
+  pinMode(COLOR_OUT, INPUT);
+
+  // Set TCS3200 frequency scaling to 20%
+  digitalWrite(COLOR_S0, HIGH);
+  digitalWrite(COLOR_S1, LOW);
+
+  // Initialize Temperature Probe
+  tempSensors.begin();
+  analogReadResolution(12);
+
+  // Initialize Wi-Fi Connection
+  WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true); // Automatically reconnects if connection drops
+  WiFi.begin(ssid, password);
+
+  Serial.print("[WIFI] Connecting to: ");
+  Serial.println(ssid);
+
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+    delay(500);
+    Serial.print(".");
+    attempts++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\n[WIFI] Connected Successfully!");
+    Serial.print("[WIFI] ESP32 Assigned IP: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("\n[WIFI] Initial Connection Failed or Timed Out!");
+  }
+}
+
+void loop() {
+  // Prevent Wi-Fi stall: reconnect if hotspot signal was lost
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("[WIFI] Connection lost. Reconnecting...");
+    WiFi.disconnect();
+    WiFi.reconnect();
+    delay(3000);
+    return;
+  }
+
+  // 1. Read Temperature (DS18B20)
+  tempSensors.requestTemperatures();
+  float temperature = tempSensors.getTempCByIndex(0);
+  if (temperature < -50.0 || temperature > 125.0) {
+    temperature = 25.0; // Fallback default if probe is disconnected
+  }
+
+  // 2. Read pH Sensor
+  int rawPH = analogRead(PH_PIN);
+  float voltagePH = (rawPH / 4095.0) * ADC_REF;
+  float phVal = constrain(7.0 + ((2.5 - voltagePH) * 3.5), 0.0, 14.0);
+
+  if (phVal >= 13.8 || phVal <= 0.2 || rawPH > 4000 || rawPH < 50){
+    phVal = 7.5;
+  }
+
+  // 3. Read Turbidity Sensor
+  int rawTurb = analogRead(TURBIDITY_PIN);
+  float voltageTurb = (rawTurb / 4095.0) * ADC_REF;
+  float ntu = -1120.4 * (voltageTurb * voltageTurb) + 5742.3 * voltageTurb - 4352.9;
+  if (ntu < 0) ntu = 0.0;
+  float turbidityVal = constrain(ntu / 1000.0, 0.0, 50.0);
+
+  // 4. Read TDS Sensor with temperature compensation
+  int rawTDS = analogRead(TDS_PIN);
+  float voltageTDS = (rawTDS / 4095.0) * ADC_REF;
+  float compCoeff = 1.0 + 0.02 * (temperature - 25.0);
+  float compVolt = voltageTDS / compCoeff;
+  float tdsVal = (133.42 * pow(compVolt, 3) - 255.86 * pow(compVolt, 2) + 857.39 * compVolt) * 0.5;
+  if (tdsVal < 0) tdsVal = 0.0;
+
+  // 5. Read Color Sensor (R, G, B)
+  int r = readColorChannel(LOW, LOW);
+  int b = readColorChannel(LOW, HIGH);
+  int g = readColorChannel(HIGH, HIGH);
+
+  // 6. Build JSON string with keys matching FastAPI backend schema
+  String jsonPayload = "{";
+  jsonPayload += "\"tds\":" + String(tdsVal, 1) + ",";
+  jsonPayload += "\"ph\":" + String(phVal, 2) + ",";
+  jsonPayload += "\"turbidity\":" + String(turbidityVal, 2) + ",";
+  jsonPayload += "\"temperature\":" + String(temperature, 1) + ",";
+  jsonPayload += "\"r\":" + String(r) + ",";
+  jsonPayload += "\"g\":" + String(g) + ",";
+  jsonPayload += "\"b\":" + String(b);
+  jsonPayload += "}";
+
+  Serial.println("[OUT] " + jsonPayload);
+
+  // 7. Send data via HTTP POST with a 3-second timeout guard
+  HTTPClient http;
+  http.begin(serverUrl);
+  http.setTimeout(3000);
+  http.addHeader("Content-Type", "application/json");
+
+  int httpResponseCode = http.POST(jsonPayload);
+  Serial.printf("[HTTP] POST Response: %d\n", httpResponseCode);
+  http.end();
+
+  // Send readings every 3 seconds
+  delay(3000);
+}
