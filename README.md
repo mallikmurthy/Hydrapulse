@@ -1,379 +1,180 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>HydroPulse | AIoT Water Quality & Predictive Monitor</title>
-
-  <!-- Tailwind CSS & Lucide Icons -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IoT Real-Time Water Potability & Work Allocation</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-    body { font-family: 'Plus Jakarta Sans', sans-serif; }
-    .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); }
-  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-cyan-500 selection:text-white">
+<body class="bg-slate-100 text-slate-800 min-h-screen p-4 sm:p-6 font-sans">
 
-  <!-- Ambient Glow Effects -->
-  <div class="fixed top-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
-  <div class="fixed bottom-0 right-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+  <div class="max-w-4xl mx-auto space-y-6">
 
-  <!-- Top Navbar -->
-  <header class="border-b border-slate-800/80 sticky top-0 z-50 glass">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20">
-          <i data-lucide="droplets" class="w-5 h-5"></i>
-        </div>
-        <div>
-          <h1 class="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            HydroPulse AIoT
-            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-800 border border-cyan-200">STM32 Edge Core</span>
-          </h1>
-          <p class="text-xs text-slate-500 font-medium">Real-time Spectral & Biocidal Analysis</p>
-        </div>
+    <!-- Header -->
+    <header class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div>
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <span>💧</span> Smart Water Potability & Usability Hub
+        </h1>
+        <p class="text-xs sm:text-sm text-slate-500 mt-1">Live telemetry analytics: TDS, pH, Turbidity, Temp & Color sensors</p>
+      </div>
+      <div id="livePill" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        ESP32 Connected
+      </div>
+    </header>
+
+    <!-- Real-time Sensor Metric Gauges -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <!-- TDS -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">TDS</span>
+        <div id="valTds" class="text-xl sm:text-2xl font-black text-slate-900 mt-1">--</div>
+        <span class="text-[11px] text-slate-500">ppm</span>
       </div>
 
-      <div class="flex items-center gap-3">
-        <div id="connectionPill" class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 text-xs font-medium">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span id="connectionText">Telemetry Active</span>
-        </div>
-        <div class="text-xs text-slate-600 border border-slate-200 bg-white/50 px-3 py-1.5 rounded-lg shadow-sm">
-          Node.js :5000
+      <!-- pH -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">pH Level</span>
+        <div id="valPh" class="text-xl sm:text-2xl font-black text-slate-900 mt-1">--</div>
+        <span class="text-[11px] text-slate-500">6.5 - 8.5 target</span>
+      </div>
+
+      <!-- Turbidity -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Turbidity</span>
+        <div id="valTurb" class="text-xl sm:text-2xl font-black text-slate-900 mt-1">--</div>
+        <span class="text-[11px] text-slate-500">NTU</span>
+      </div>
+
+      <!-- Temperature -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Temp</span>
+        <div id="valTemp" class="text-xl sm:text-2xl font-black text-slate-900 mt-1">--</div>
+        <span class="text-[11px] text-slate-500">&deg;C</span>
+      </div>
+
+      <!-- Color Sensor RGB -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center col-span-2 sm:col-span-1">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Water Color</span>
+        <div class="flex items-center justify-center gap-2 mt-2">
+          <div id="colorSwatch" class="w-6 h-6 rounded-full border border-slate-300 bg-blue-100 shadow-inner"></div>
+          <span id="valRgb" class="text-xs font-medium text-slate-700">Clear</span>
         </div>
       </div>
     </div>
-  </header>
 
-  <!-- Main Content Dashboard -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-
-    <!-- Hero Status Section: Shelf-Life & Safe Uses -->
-    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-      <!-- Left Card: Potability & Countdown -->
-      <div class="lg:col-span-2 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 p-6 relative overflow-hidden shadow-2xl">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
-          <div>
-            <span class="text-xs uppercase tracking-wider font-semibold text-slate-400">Current Health Classification</span>
-            <h2 id="suitabilityBadge" class="text-2xl font-extrabold text-emerald-400 mt-1 flex items-center gap-2">
-              <i data-lucide="shield-check" class="w-6 h-6"></i>
-              <span>Analyzing Samples...</span>
-            </h2>
-            <p id="suitabilitySub" class="text-xs text-slate-400 mt-1">Acquiring sensor telemetries over serial bus</p>
-          </div>
-
-          <!-- Countdown Pill -->
-          <div class="flex items-center gap-4 bg-slate-800/60 border border-slate-700/60 px-5 py-3 rounded-xl">
-            <i data-lucide="timer" class="w-7 h-7 text-cyan-400"></i>
-            <div>
-              <div class="flex items-baseline gap-1">
-                <span id="drinkableHours" class="text-3xl font-extrabold text-cyan-300">--</span>
-                <span class="text-xs font-semibold uppercase text-slate-400 tracking-wider">Hours</span>
-              </div>
-              <span class="text-[11px] text-slate-400">Predicted Potable Window</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Repurposing Applications -->
-        <div class="mt-6">
-          <h3 class="text-xs uppercase tracking-wider font-semibold text-slate-400 mb-3 flex items-center gap-2">
-            <i data-lucide="check-circle-2" class="w-4 h-4 text-cyan-400"></i>
-            Approved Functional Applications
-          </h3>
-          <div id="usageTags" class="flex flex-wrap gap-2">
-            <span class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 text-slate-300 border border-slate-700">Loading recommendations...</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Right Card: Edge-AI Algae Risk Gauge -->
-      <div class="rounded-2xl bg-slate-900 border border-slate-800 p-6 flex flex-col justify-between shadow-2xl relative">
-        <div class="flex items-center justify-between">
-          <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
-            <i data-lucide="brain-circuit" class="w-4 h-4 text-indigo-400"></i>
-            Edge-AI Bloom Risk
-          </h3>
-          <span id="riskLabel" class="text-xs px-2 py-0.5 rounded-md font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">LOW</span>
-        </div>
-
-        <div class="flex items-center justify-center my-4">
-          <div class="relative flex items-center justify-center">
-            <svg class="w-40 h-40 transform -rotate-90">
-              <circle cx="80" cy="80" r="66" stroke="#1e293b" stroke-width="12" fill="transparent" />
-              <circle id="riskCircle" cx="80" cy="80" r="66" stroke="#10b981" stroke-width="12" stroke-dasharray="414" stroke-dashoffset="414" stroke-linecap="round" fill="transparent" class="transition-all duration-700 ease-out" />
-            </svg>
-            <div class="absolute flex flex-col items-center">
-              <span id="riskValue" class="text-3xl font-extrabold tracking-tight text-white">0%</span>
-              <span class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Inference</span>
-            </div>
-          </div>
-        </div>
-
-        <p class="text-[11px] text-slate-400 text-center leading-relaxed">
-          Trained decision fusion combining Spectral Chlorophyll-a (<span id="algaePPM" class="text-cyan-400 font-semibold">0.0</span> µg/L), Turbidity, and pH.
-        </p>
-      </div>
-
-    </section>
-
-    <!-- 4 Key Sensor Metrics -->
-    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      
-      <!-- Card: Temperature -->
-      <div class="rounded-xl bg-slate-900/90 border border-slate-800 p-5 hover:border-slate-700 transition">
-        <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-medium text-slate-400">Water Temperature</span>
-          <div class="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400">
-            <i data-lucide="thermometer" class="w-4 h-4"></i>
-          </div>
-        </div>
-        <div class="flex items-baseline gap-2">
-          <span id="tempVal" class="text-2xl font-bold text-white">--</span>
-          <span class="text-xs text-slate-400">°C</span>
-        </div>
-        <div class="mt-2 text-[11px] text-slate-500 flex items-center gap-1.5">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> DS18B20 1-Wire Probe
-        </div>
-      </div>
-
-      <!-- Card: pH Level -->
-      <div class="rounded-xl bg-slate-900/90 border border-slate-800 p-5 hover:border-slate-700 transition">
-        <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-medium text-slate-400">Acidity Index</span>
-          <div class="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
-            <i data-lucide="test-tube-2" class="w-4 h-4"></i>
-          </div>
-        </div>
-        <div class="flex items-baseline gap-2">
-          <span id="phVal" class="text-2xl font-bold text-white">--</span>
-          <span class="text-xs text-slate-400">pH</span>
-        </div>
-        <div class="mt-2 text-[11px] text-slate-500 flex items-center gap-1.5">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Opt range: 6.5 - 8.5
-        </div>
-      </div>
-
-      <!-- Card: TDS -->
-      <div class="rounded-xl bg-slate-900/90 border border-slate-800 p-5 hover:border-slate-700 transition">
-        <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-medium text-slate-400">Total Dissolved Solids</span>
-          <div class="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-            <i data-lucide="sparkles" class="w-4 h-4"></i>
-          </div>
-        </div>
-        <div class="flex items-baseline gap-2">
-          <span id="tdsVal" class="text-2xl font-bold text-white">--</span>
-          <span class="text-xs text-slate-400">PPM</span>
-        </div>
-        <div class="mt-2 text-[11px] text-slate-500 flex items-center gap-1.5">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Max Drinkable: 500 PPM
-        </div>
-      </div>
-
-      <!-- Card: Turbidity -->
-      <div class="rounded-xl bg-slate-900/90 border border-slate-800 p-5 hover:border-slate-700 transition">
-        <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-medium text-slate-400">Optical Turbidity</span>
-          <div class="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
-            <i data-lucide="waves" class="w-4 h-4"></i>
-          </div>
-        </div>
-        <div class="flex items-baseline gap-2">
-          <span id="turbVal" class="text-2xl font-bold text-white">--</span>
-          <span class="text-xs text-slate-400">V (TSW-30)</span>
-        </div>
-        <div class="mt-2 text-[11px] text-slate-500 flex items-center gap-1.5">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> High V = Clear Water
-        </div>
-      </div>
-
-    </section>
-
-    <!-- Real-time Chart Section -->
-    <section class="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-xl">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <!-- Potability Status & Shelf-life Card -->
+    <div id="statusCard" class="p-5 rounded-2xl border transition-all duration-300">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
-            <i data-lucide="activity" class="w-5 h-5 text-cyan-400"></i>
-            Live Telemetry Timeline
-          </h3>
-          <p class="text-xs text-slate-400">Dynamic dual-axis chart plotting pH and TDS fluctuations</p>
+          <span class="text-[11px] font-bold uppercase tracking-wider opacity-75">Analysis Result</span>
+          <h2 id="statusHeadline" class="text-xl font-bold">Evaluating sensors...</h2>
+          <p id="statusAdvice" class="text-xs sm:text-sm mt-1"></p>
         </div>
-        <div class="flex items-center gap-4 text-xs font-medium">
-          <span class="flex items-center gap-1.5 text-cyan-400">
-            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span> pH Level
-          </span>
-          <span class="flex items-center gap-1.5 text-purple-400">
-            <span class="w-2.5 h-2.5 rounded-full bg-purple-400"></span> TDS (ppm)
-          </span>
+        <div class="bg-white/90 px-4 py-2 rounded-xl border border-black/5 text-center min-w-[170px]">
+          <span class="text-[10px] uppercase font-bold text-slate-500 block">Safe Drinking Duration</span>
+          <span id="hoursLeftDisplay" class="text-lg font-black text-slate-900">-- Hours</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Works & Application Breakdown -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      
+      <!-- Allowed Works -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-2 mb-3">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          Tasks You Can Use This Water For
+        </h3>
+        <div id="allowedList" class="space-y-2">
+          <p class="text-xs text-slate-400">Awaiting sensor evaluation...</p>
         </div>
       </div>
 
-      <div class="h-72 w-full">
-        <canvas id="telemetryChart"></canvas>
+      <!-- Restricted Works -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-rose-700 flex items-center gap-2 mb-3">
+          <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+          Tasks To Strictly Avoid
+        </h3>
+        <div id="restrictedList" class="space-y-2">
+          <p class="text-xs text-slate-400">No restrictions detected.</p>
+        </div>
       </div>
-    </section>
 
-  </main>
+    </div>
+
+  </div>
 
   <script>
-    lucide.createIcons();
-
-    // Chart.js Setup
-    const ctx = document.getElementById('telemetryChart').getContext('2d');
-    const telemetryChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: [
-          {
-            label: 'pH Level',
-            data: [],
-            borderColor: '#22d3ee',
-            backgroundColor: 'rgba(34, 211, 238, 0.08)',
-            borderWidth: 2,
-            tension: 0.35,
-            fill: true,
-            yAxisID: 'yPH'
-          },
-          {
-            label: 'TDS (ppm)',
-            data: [],
-            borderColor: '#c084fc',
-            backgroundColor: 'rgba(192, 132, 252, 0.08)',
-            borderWidth: 2,
-            tension: 0.35,
-            fill: true,
-            yAxisID: 'yTDS'
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: {
-            grid: { color: '#1e293b' },
-            ticks: { color: '#64748b', font: { size: 10 } }
-          },
-          yPH: {
-            type: 'linear',
-            position: 'left',
-            min: 0,
-            max: 14,
-            grid: { color: '#1e293b' },
-            ticks: { color: '#22d3ee', font: { size: 10 } }
-          },
-          yTDS: {
-            type: 'linear',
-            position: 'right',
-            min: 0,
-            max: 1000,
-            grid: { drawOnChartArea: false },
-            ticks: { color: '#c084fc', font: { size: 10 } }
-          }
-        },
-        plugins: {
-          legend: { display: false }
-        }
-      }
-    });
-
-    // Ingest data from Express backend
     async function fetchTelemetry() {
       try {
-        const res = await fetch('http://localhost:5000/api/telemetry');
+        const res = await fetch("/api/water/live-analysis");
         const data = await res.json();
-
-        // 1. Connection status
-        document.getElementById('connectionPill').className = "flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 text-xs font-medium";
-        document.getElementById('connectionText').textContent = "Live STM32 Synced";
-
-        // 2. Sensor metrics
-        document.getElementById('tempVal').textContent = data.temp ? data.temp.toFixed(1) : '--';
-        document.getElementById('phVal').textContent = data.ph ? data.ph.toFixed(2) : '--';
-        document.getElementById('tdsVal').textContent = data.tds !== undefined ? data.tds : '--';
-        document.getElementById('turbVal').textContent = data.turb ? data.turb.toFixed(2) : '--';
-        document.getElementById('algaePPM').textContent = data.algae ? data.algae.toFixed(1) : '0.0';
-
-        // 3. Potability & Countdown
-        document.getElementById('drinkableHours').textContent = data.drinkableHours !== undefined ? data.drinkableHours : '0';
         
-        const badge = document.getElementById('suitabilityBadge');
-        const sub = document.getElementById('suitabilitySub');
-        if (data.drinkableHours > 0) {
-          badge.className = "text-2xl font-extrabold text-emerald-400 mt-1 flex items-center gap-2";
-          badge.innerHTML = `<i data-lucide="shield-check" class="w-6 h-6"></i> <span>Potable & Safe</span>`;
-          sub.textContent = "All parameters satisfy potable water thresholds.";
+        // Populate Sensor Values
+        document.getElementById("valTds").innerText = data.telemetry.tds.toFixed(0);
+        document.getElementById("valPh").innerText = data.telemetry.ph.toFixed(1);
+        document.getElementById("valTurb").innerText = data.telemetry.turbidity.toFixed(1);
+        document.getElementById("valTemp").innerText = data.telemetry.temperature.toFixed(1);
+        
+        // Color Sensor swatch
+        const r = data.telemetry.r, g = data.telemetry.g, b = data.telemetry.b;
+        document.getElementById("colorSwatch").style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+        document.getElementById("valRgb").innerText = `(${r},${g},${b})`;
+
+        // Status Card Styling
+        const card = document.getElementById("statusCard");
+        const headline = document.getElementById("statusHeadline");
+        const advice = document.getElementById("statusAdvice");
+        const hours = document.getElementById("hoursLeftDisplay");
+
+        headline.innerText = data.status_text;
+        advice.innerText = data.advice;
+
+        if (data.badge_style === "safe") {
+          card.className = "p-5 rounded-2xl border bg-emerald-50 border-emerald-200 text-emerald-950";
+          hours.innerText = `${data.drinking_hours_left} Hours`;
+          hours.className = "text-lg font-black text-emerald-700";
+        } else if (data.badge_style === "warning") {
+          card.className = "p-5 rounded-2xl border bg-amber-50 border-amber-200 text-amber-950";
+          hours.innerText = "0h (Boil First)";
+          hours.className = "text-lg font-black text-amber-700";
         } else {
-          badge.className = "text-2xl font-extrabold text-rose-500 mt-1 flex items-center gap-2";
-          badge.innerHTML = `<i data-lucide="alert-triangle" class="w-6 h-6"></i> <span>Unsafe for Direct Ingestion</span>`;
-          sub.textContent = data.suitability || "Safe limits exceeded.";
+          card.className = "p-5 rounded-2xl border bg-rose-50 border-rose-200 text-rose-950";
+          hours.innerText = "Unsafe (0h)";
+          hours.className = "text-lg font-black text-rose-700";
         }
 
-        // 4. Bloom Risk Radial Circle
-        const risk = Math.min(Math.max(data.risk || 0, 0), 100);
-        document.getElementById('riskValue').textContent = `${Math.round(risk)}%`;
-        const circle = document.getElementById('riskCircle');
-        const offset = 414 - (414 * risk) / 100;
-        circle.style.strokeDashoffset = offset;
+        // Render Allowed Works
+        const allowedBox = document.getElementById("allowedList");
+        allowedBox.innerHTML = data.allowed_works.map(item => `
+          <div class="p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-100 text-xs font-semibold text-emerald-900 flex items-center gap-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> ${item}
+          </div>
+        `).join("");
 
-        const riskLabel = document.getElementById('riskLabel');
-        if (risk < 30) {
-          circle.style.stroke = '#10b981'; // Green
-          riskLabel.textContent = 'LOW RISK';
-          riskLabel.className = 'text-xs px-2 py-0.5 rounded-md font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-        } else if (risk < 70) {
-          circle.style.stroke = '#f59e0b'; // Amber
-          riskLabel.textContent = 'MODERATE';
-          riskLabel.className = 'text-xs px-2 py-0.5 rounded-md font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20';
+        // Render Restricted Works
+        const restrictedBox = document.getElementById("restrictedList");
+        if (data.restricted_works.length > 0) {
+          restrictedBox.innerHTML = data.restricted_works.map(item => `
+            <div class="p-2.5 rounded-lg bg-rose-50/70 border border-rose-100 text-xs font-semibold text-rose-900 flex items-center gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> ${item}
+            </div>
+          `).join("");
         } else {
-          circle.style.stroke = '#ef4444'; // Red
-          riskLabel.textContent = 'CRITICAL BLOOM';
-          riskLabel.className = 'text-xs px-2 py-0.5 rounded-md font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20';
+          restrictedBox.innerHTML = `<div class="p-2.5 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-500 font-medium">Water meets all potable thresholds. No current restrictions.</div>`;
         }
-
-        // 5. Populate Purpose Tags
-        const tagsContainer = document.getElementById('usageTags');
-        tagsContainer.innerHTML = '';
-        if (data.recommendedUses && data.recommendedUses.length > 0) {
-          data.recommendedUses.forEach(use => {
-            const tag = document.createElement('span');
-            tag.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-cyan-300 border border-slate-700/80 shadow-sm flex items-center gap-1.5";
-            tag.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>${use}`;
-            tagsContainer.appendChild(tag);
-          });
-        }
-
-        // 6. Update Real-time Chart
-        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        if (telemetryChart.data.labels.length > 15) {
-          telemetryChart.data.labels.shift();
-          telemetryChart.data.datasets[0].data.shift();
-          telemetryChart.data.datasets[1].data.shift();
-        }
-        telemetryChart.data.labels.push(timestamp);
-        telemetryChart.data.datasets[0].data.push(data.ph);
-        telemetryChart.data.datasets[1].data.push(data.tds);
-        telemetryChart.update('none');
-
-        lucide.createIcons();
 
       } catch (err) {
-        document.getElementById('connectionPill').className = "flex items-center gap-2 px-3 py-1.5 rounded-full border border-rose-500/20 bg-rose-500/10 text-rose-400 text-xs font-medium";
-        document.getElementById('connectionText').textContent = "Offline (Check :5000)";
+        console.error("Telemetry poll failed:", err);
       }
     }
 
-    // Refresh every 2 seconds
-    setInterval(fetchTelemetry, 2000);
+    // Poll live data every 3 seconds
+    setInterval(fetchTelemetry, 3000);
     fetchTelemetry();
   </script>
 </body>
