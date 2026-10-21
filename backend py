@@ -1,0 +1,164 @@
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from typing import List, Optional
+import os
+import time
+
+app = FastAPI(title="IoT Water Potability & Work Usability Engine")
+
+# In-memory store for the latest reading
+latest_telemetry = {
+    "tds": 145.0,
+    "ph": 7.2,
+    "turbidity": 0.8,
+    "temperature": 24.5,
+    "r": 230,
+    "g": 235,
+    "b": 240,
+    "timestamp": time.time(),
+    "has_data": False
+}
+
+class SensorPayload(BaseModel):
+    tds: float          # in ppm
+    ph: float           # pH scale 0-14
+    turbidity: float    # in NTU or calibrated voltage unit
+    temperature: float  # in Celsius
+    r: int              # Color sensor Red (0-255)
+    g: int              # Color sensor Green (0-255)
+    b: int              # Color sensor Blue (0-255)
+
+@app.get("/")
+def serve_dashboard():
+    if os.path.exists("index.html"):
+        return FileResponse("index.html")
+    raise HTTPException(status_code=404, detail="index.html not found.")
+
+@app.post("/api/sensors/update")
+def receive_sensor_data(data: SensorPayload):
+    global latest_telemetry
+    latest_telemetry = {
+        "tds": data.tds,
+        "ph": data.ph,
+        "turbidity": data.turbidity,
+        "temperature": data.temperature,
+        "r": data.r,
+        "g": data.g,
+        "b": data.b,
+        "timestamp": time.time(),
+        "has_data": True
+    }
+    return {"status": "success", "message": "Telemetry received"}
+
+@app.get("/api/water/live-analysis")
+def get_live_analysis():
+    t = latest_telemetry
+    
+    tds = t["tds"]
+    ph = t["ph"]
+    turb = t["turbidity"]
+    temp = t["temperature"]
+    r, g, b = t["r"], t["g"], t["b"]
+
+    issues = []
+    
+    # 1. Physical and Chemical Validation
+    is_ph_safe = 6.5 <= ph <= 8.5
+    if not is_ph_safe:
+        issues.append(f"Abnormal pH ({ph:.1f})")
+
+    is_tds_safe = 30 <= tds <= 500
+    if not is_tds_safe:
+        issues.append(f"TDS out of safe potable range ({tds:.0f} ppm)")
+
+    is_turbidity_safe = turb <= 5.0
+    if not is_turbidity_safe:
+        issues.append(f"High Turbidity ({turb:.1f} NTU)")
+
+    # Color check: Check if tinted brownish/greenish
+    color_anomaly = False
+    if (r > 180 and g < 140 and b < 100) or (g > r + 30 and g > b + 20):
+        color_anomaly = True
+        issues.append("Water discoloration detected (organics/algae)")
+
+    # 2. Potability & Shelf Life Calculation
+    # High temp (> 25°C) increases bacterial growth rate exponentially
+    if not is_ph_safe or not is_tds_safe or not is_turbidity_safe or color_anomaly:
+        is_drinkable = False
+        drinking_hours_left = 0
+        grade = "NON_POTABLE"
+    else:
+        is_drinkable = True
+        # Base shelf life: clean water at 20°C lasts ~48-72h in clean container
+        # Temperature factor: microbial kinetics double every 8-10°C
+        temp_decay = max(1.0, (temp - 20) * 1.8) if temp > 20 else 1.0
+        calculated_hours = round(max(4.0, 48.0 - (temp_decay * 4.5)), 1)
+        drinking_hours_left = calculated_hours
+        grade = "POTABLE"
+
+    # 3. Categorize Allowed and Restricted Works
+    allowed_works = []
+    restricted_works = []
+
+    if grade == "POTABLE":
+        status_text = f"Safe to Drink (~{drinking_hours_left} Hours Shelf Life)"
+        badge_style = "safe"
+        advice = "Water quality complies with WHO/BIS potability metrics. Store in a covered container."
+        allowed_works = [
+            "Direct Drinking & Beverages",
+            "Cooking & Washing Vegetables/Fruits",
+            "Infant Formula & Food Preparation",
+            "Bathing, Face Wash & Tooth Brushing",
+            "Dishwashing & Utensil Cleaning",
+            "Clothes Laundry",
+            "Plant & Indoor Garden Watering"
+        ]
+        restricted_works = []
+        
+    elif (6.0 <= ph <= 9.0) and (tds <= 1200) and (turb <= 8.0):
+        status_text = "Secondary Use Only (Do NOT Drink Raw)"
+        badge_style = "warning"
+        advice = f"Violations: {', '.join(issues)}. Boil vigorously or filter through RO before drinking."
+        allowed_works = [
+            "Dishwashing & Kitchen Cleaning (Boiled)",
+            "Clothes Washing / Machine Laundry",
+            "Floor Mopping & Tile Cleaning",
+            "Toilet Flushing",
+            "Garden & Outdoor Plant Watering",
+            "Car Washing & Equipment Rinse"
+        ]
+        restricted_works = [
+            "Direct Raw Drinking",
+            "Oral Hygiene / Brushing",
+            "Infant Feeding"
+        ]
+    else:
+        status_text = "Contaminated / Utility Flushing Only"
+        badge_style = "danger"
+        advice = f"Severe deviations: {', '.join(issues)}. Unsafe for skin or domestic consumption."
+        allowed_works = [
+            "Toilet Flushing",
+            "Drain Clearance & Sewer Line Flush",
+            "Outdoor Concrete / Construction Wash"
+        ]
+        restricted_works = [
+            "Direct Drinking",
+            "Cooking & Food Washing",
+            "Bathing & Showering",
+            "Washing Clothes (Staining / Odor risk)",
+            "Gardening (If chemicals or extreme pH present)"
+        ]
+
+    return {
+        "telemetry": t,
+        "is_drinkable": is_drinkable,
+        "drinking_hours_left": drinking_hours_left,
+        "grade": grade,
+        "status_text": status_text,
+        "badge_style": badge_style,
+        "advice": advice,
+        "issues": issues,
+        "allowed_works": allowed_works,
+        "restricted_works": restricted_works
+    }
